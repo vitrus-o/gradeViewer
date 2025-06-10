@@ -1,6 +1,11 @@
 <template>
     <div class="container">
-        <h1>{{ title }}</h1>
+        <div class="header">
+            <h1>{{ title }}</h1>
+            <button @click="refreshGrades" :disabled="isLoading" class="refresh-btn">
+                Refresh Grades
+            </button>
+        </div>
         <div v-if="error" class="error">{{ error }}</div>
         <div v-else-if="isLoading" class="loading"> Loading grades...</div>
         <table v-else-if="grades.length">
@@ -71,7 +76,6 @@ interface Grade {
 }
 
 const grades = ref<Grade[]>([]);
-const token = ref<string | null>(null);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
@@ -79,25 +83,20 @@ async function handleLogin() {
     try {
         const response = await fetch('/api/auth');
         const data = await response.json();
-        token.value = data.token;
-        if (token.value && process.client) {
-            localStorage.setItem('auth_token', token.value);
+        if (!data.success) {
+            throw new Error('Login failed');
         }
-        return token.value;
+        return true;
     } catch (error) {
         console.error("Login failed: ", error);
         throw error;
     }
 }
 
-async function getStatus() {
-    if (!token.value && process.client) {
-        token.value = localStorage.getItem('auth_token');
-    }
-    const response = await fetch('/api/grades', {
+async function getStatus(force = false) {
+    const response = await fetch(`/api/grades${force ? '?force=true' : ''}`, {
         method: 'GET',
         headers: {
-            'Authorization': `Token token=${token.value}`,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         }
@@ -107,10 +106,6 @@ async function getStatus() {
 }
 
 async function logout() {
-    token.value = null;
-    if (process.client) {
-        localStorage.removeItem('auth_token');
-    }
     grades.value = [];
     error.value = null;
 }
@@ -119,11 +114,22 @@ async function loadStatus() {
     isLoading.value = true;
     error.value = null;
     try {
-        let data = await getStatus();
-        if (data?.messages?.includes("You are not logged in.")) {
-            await handleLogin();
-            data = await getStatus();
-        }
+        await handleLogin();
+        const data = await getStatus();
+        grades.value = data.grades;
+    } catch (err: unknown) {
+        error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
+        console.error("Error: ", err);
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+async function refreshGrades() {
+    isLoading.value = true;
+    error.value = null;
+    try {
+        const data = await getStatus(true);
         grades.value = data.grades;
     } catch (err: unknown) {
         error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -134,10 +140,7 @@ async function loadStatus() {
 }
 
 onMounted(() => {
-    if (process.client) {
-        token.value = localStorage.getItem('auth_token');
-        loadStatus();
-    }
+    loadStatus();
 });
 </script>
 
@@ -218,6 +221,32 @@ tr:nth-child(even) {
 .loading {
     padding: 1rem;
     text-align: center;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.refresh-btn {
+    padding: 0.5rem 1rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.refresh-btn:hover {
+    background-color: #45a049;
+}
+
+.refresh-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 @media screen and (min-width: 768px){

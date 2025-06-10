@@ -1,6 +1,13 @@
-import { defineEventHandler } from 'h3'
+import { defineEventHandler, createError } from 'h3'
+
+interface SessionData {
+    token: string | null;
+    grades: any[];
+    lastFetch: number;
+}
 
 export default defineEventHandler(async (event) => {
+    
     try {
         const response = await fetch('https://c1-student.vsu.edu.ph/api/sessions', {
             method: 'POST',
@@ -27,9 +34,17 @@ export default defineEventHandler(async (event) => {
             })
         });
         const data = await response.json();
-        return { token: data?.user?.api_auth_token || "" };
+        const token = data?.user?.api_auth_token || "";
+        if (!event.context.session) {
+            event.context.session = {} as SessionData;
+        }
+        
+        event.context.session.token = token;
+        event.context.session.lastFetch = 0;
+        event.context.session.grades = [];
+        
+        return { success: true };
     } catch (error) {
-        console.error("Login failed:", error);
         throw createError({
             statusCode: 500,
             message: "Authentication failed"

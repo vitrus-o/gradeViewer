@@ -12,6 +12,7 @@
   "dependencies": {
     "@vueuse/head": "^2.0.0",
     "@vueuse/nuxt": "^13.3.0",
+    "h3-session": "^0.2.5",
     "nuxt": "^3.17.5",
     "vue": "^3.5.16",
     "vue-router": "^4.5.1"

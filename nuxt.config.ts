@@ -4,5 +4,13 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
   ],
   compatibilityDate: '2025-05-15',
-  devtools: { enabled: true }
+  devtools: { enabled: true },
+  nitro: {
+    storage: {
+      'data': {
+        driver: 'fs',
+        base: './.data/storage'
+      }
+    }
+  }
 })
