@@ -28,6 +28,119 @@
     </div>
 </template>
 
+<script setup lang="ts">
+import { useSeoMeta, useHead } from '@vueuse/head';
+import { ref, onMounted } from 'vue';
+
+const title = "Yotsuba Grade Viewer";
+const description = "I'm lazy, so I made a grade viewer in honor of Yotsuba. It shows the status of the subjects.";
+
+useSeoMeta({
+    title: () => title,
+    description: () => description,
+    charset: "utf-8",
+    viewport: "width=device-width, initial-scale=1.0"
+});
+
+useHead({
+    link: [
+        {rel: 'icon', type: 'image/png', href: '/logoyotsuba.png'},
+        {rel: 'stylesheet', href: '/reset.css'}
+    ]
+});
+
+interface Grade {
+  grade_status: {
+    midterm: {
+      status: number;
+      status_label: string;
+      submitted: string;
+    };
+    final: {
+      status: number;
+      status_label: string;
+      submitted: string;
+    };
+  };
+  offer: {
+    subject: {
+      subject_no: string;
+      description: string;
+    };
+  };
+}
+
+const grades = ref<Grade[]>([]);
+const token = ref<string | null>(null);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+
+async function handleLogin() {
+    try {
+        const response = await fetch('/api/auth');
+        const data = await response.json();
+        token.value = data.token;
+        if (token.value && process.client) {
+            localStorage.setItem('auth_token', token.value);
+        }
+        return token.value;
+    } catch (error) {
+        console.error("Login failed: ", error);
+        throw error;
+    }
+}
+
+async function getStatus() {
+    if (!token.value && process.client) {
+        token.value = localStorage.getItem('auth_token');
+    }
+    const response = await fetch('/api/grades', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Token token=${token.value}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    });
+    const data = await response.json();
+    return data;
+}
+
+async function logout() {
+    token.value = null;
+    if (process.client) {
+        localStorage.removeItem('auth_token');
+    }
+    grades.value = [];
+    error.value = null;
+}
+
+async function loadStatus() {
+    isLoading.value = true;
+    error.value = null;
+    try {
+        let data = await getStatus();
+        if (data?.messages?.includes("You are not logged in.")) {
+            await handleLogin();
+            data = await getStatus();
+        }
+        grades.value = data.grades;
+    } catch (err: unknown) {
+        error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
+        console.error("Error: ", err);
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+onMounted(() => {
+    if (process.client) {
+        token.value = localStorage.getItem('auth_token');
+        loadStatus();
+    }
+});
+</script>
+
 <style scoped>
 .container{
     padding: 1rem;
@@ -168,118 +281,3 @@ tr:nth-child(even) {
     margin-top: 0.5rem;
 }
 </style>
-
-<script setup lang="ts">
-import { useSeoMeta, useHead } from '@vueuse/head';
-import { ref, onMounted } from 'vue';
-
-const title = "Yotsuba Grade Viewer";
-const description = "I'm lazy, so I made a grade viewer in honor of Yotsuba. It shows the status of the subjects.";
-
-useSeoMeta({
-    title: () => title,
-    description: () => description,
-    charset: "utf-8",
-    viewport: "width=device-width, initial-scale=1.0"
-});
-
-useHead({
-    link: [
-        {rel: 'icon', type: 'image/png', href: '/logoyotsuba.png'},
-        {rel: 'stylesheet', href: '/reset.css'}
-    ]
-});
-
-interface Grade {
-  grade_status: {
-    midterm: {
-      status: number;
-      status_label: string;
-      submitted: string;
-    };
-    final: {
-      status: number;
-      status_label: string;
-      submitted: string;
-    };
-  };
-  offer: {
-    subject: {
-      subject_no: string;
-      description: string;
-    };
-  };
-}
-
-const grades = ref<Grade[]>([]);
-let token: string | null = null;
-const isLoading = ref(false);
-const error = ref<string | null>(null);
-
-async function handleLogin() {
-    try{
-        const response = await fetch('https://c1-student.vsu.edu.ph/api/sessions',{
-            method:'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip, deflate, br, zstd',
-                'Accept-Language': 'en-PH,en-US;q=0.9,en;q=0.8,fil;q=0.7',
-                'Cache-Control': 'no-cache',
-                'Content-Type': 'application/json',
-                'Origin': 'https://my.vsu.edu.ph',
-                'Pragma': 'no-cache',
-                'Referer': 'https://my.vsu.edu.ph/',
-                'Sec-Ch-Ua': '"Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
-                'Sec-Ch-Ua-Mobile': '?0',
-                'Sec-Ch-Ua-Platform': '"Windows"',
-                'Sec-Fetch-Dest': 'empty',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Site': 'same-site',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
-            },
-            body: JSON.stringify({
-                username: 'vlanora',
-                password: 'nihonjinCD1213'
-            })
-        });
-        const loginData = await response.json();
-        token = loginData?.user?.api_auth_token || "";
-        return token;
-    } catch (error) {
-        console.error("Login failed: ",error);
-        throw error;
-    }
-}
-
-async function getStatus(){
-    const response = await fetch('https://c1-student.vsu.edu.ph/api/students/grades?sy_year=2024&sy_period=2',{
-        method: 'GET',
-        headers: {
-            'Authorization': `Token token=${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-    });
-    const data = await response.json();
-    return data;
-}
-
-async function loadStatus(){
-    isLoading.value = true;
-    error.value = null;
-    try{
-        let data = await getStatus();
-        if(data?.messages?.includes("You are not logged in.")) {
-            await handleLogin();
-            data = await getStatus();
-        }
-        grades.value = data.grades;    } catch (err: unknown){
-        error.value = err instanceof Error ? err.message : 'An unexpected error occurred';
-        console.error("Error: ", err);
-    } finally {
-        isLoading.value = false;
-    }
-}
-
-onMounted(loadStatus);
-</script>
