@@ -6,10 +6,44 @@ interface SessionData {
     lastFetch: number;
 }
 
-export default defineEventHandler(async (event) => {
+interface GradeData {
+    offer: {
+        subject: {
+            subject_no: string;
+            description: string;
+        }
+    };
+    grade_status: {
+        final: {
+            status: number;
+            status_label: string;
+            submitted: string | null;
+        }
+    }
+}
 
+function transformGrades(rawGrades: any[]): GradeData[] {
+    return rawGrades.map(grade => ({
+        offer: {
+            subject: {
+                subject_no: grade.offer.subject.subject_no,
+                description: grade.offer.subject.description
+            }
+        },
+        grade_status: {
+            final: {
+                status: grade.grade_status.final.status,
+                status_label: grade.grade_status.final.status_label,
+                submitted: grade.grade_status.final.submitted
+            }
+        }
+    }));
+}
+
+export default defineEventHandler(async (event) => {
+    
     const session = event.context.session as SessionData;
-    const CACHE_DURATION = 5 * 60 * 1000; //5 min
+    const CACHE_DURATION = 5 * 60 * 1000; // 5min
     const query = getQuery(event);
     const forceRefresh = query.force === 'true';
 
@@ -19,9 +53,10 @@ export default defineEventHandler(async (event) => {
             message: "No authentication token provided"
         });
     }
+
     if (!forceRefresh && session.grades?.length > 0 && session.lastFetch && 
         (Date.now() - session.lastFetch < CACHE_DURATION)) {
-        return { grades: session.grades };
+        return { grades: transformGrades(session.grades) };
     }
 
     try {
@@ -45,9 +80,10 @@ export default defineEventHandler(async (event) => {
 
         session.grades = data.grades;
         session.lastFetch = Date.now();
-        
-        return data;
+
+        return { grades: transformGrades(data.grades) };
     } catch (error) {
+        console.error("Grades endpoint - Failed to fetch grades:", error);
         throw createError({
             statusCode: 500,
             message: "Failed to fetch grades"
