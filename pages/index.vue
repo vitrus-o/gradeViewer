@@ -49,18 +49,13 @@ useSeoMeta({
 
 useHead({
     link: [
-        {rel: 'icon', type: 'image/png', href: '/logoyotsuba.png'},
+        {rel: 'icon', type: 'image/png', href: '/logoyotsubato.png'},
         {rel: 'stylesheet', href: '/reset.css'}
     ]
 });
 
 interface Grade {
   grade_status: {
-    midterm: {
-      status: number;
-      status_label: string;
-      submitted: string;
-    };
     final: {
       status: number;
       status_label: string;

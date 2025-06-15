@@ -18,26 +18,31 @@ interface GradeData {
             status: number;
             status_label: string;
             submitted: string | null;
+            remark?: string;
         }
     }
 }
 
 function transformGrades(rawGrades: any[]): GradeData[] {
-    return rawGrades.map(grade => ({
-        offer: {
-            subject: {
-                subject_no: grade.offer.subject.subject_no,
-                description: grade.offer.subject.description
+    return rawGrades.map(grade => {
+        const isPassed = (grade?.grade?.remark == 'PASSED' && grade?.grade_status?.final?.status == 1);
+        return {
+            offer: {
+                subject: {
+                    subject_no: grade.offer.subject.subject_no,
+                    description: grade.offer.subject.description
+                }
+            },
+            grade_status: {
+                final: {
+                    status: isPassed ? "1.5" : grade.grade_status.final.status,
+                    status_label: isPassed ? "Encoded" : grade.grade_status.final.status_label,
+                    submitted: isPassed ? "Encoded but not submitted" : grade.grade_status.final.submitted,
+                    remark: grade.grade_status.final.remark
+                }
             }
-        },
-        grade_status: {
-            final: {
-                status: grade.grade_status.final.status,
-                status_label: grade.grade_status.final.status_label,
-                submitted: grade.grade_status.final.submitted
-            }
-        }
-    }));
+        };
+    });
 }
 
 export default defineEventHandler(async (event) => {
