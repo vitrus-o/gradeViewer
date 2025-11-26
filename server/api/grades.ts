@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const response = await fetch('https://c1-student.vsu.edu.ph/api/students/grades?sy_year=2024&sy_period=2', {
+        const response = await fetch('https://c1-student.vsu.edu.ph/api/students/grades?sy_year=2025&sy_period=1', {
             method: 'GET',
             headers: {
                 'Authorization': `Token token=${session.token}`,
