@@ -1,10 +1,6 @@
 import { defineEventHandler, createError, getQuery } from 'h3'
-
-interface SessionData {
-    token: string | null;
-    grades: any[];
-    lastFetch: number;
-}
+import { supabase } from '../utils/supabase'
+import { reauthenticateAndStoreToken } from '../utils/vsuAuth'
 
 interface GradeData {
     offer: {
@@ -45,53 +41,76 @@ function transformGrades(rawGrades: any[]): GradeData[] {
     });
 }
 
+async function fetchGradesFromVSU(token: string) {
+    const response = await fetch('https://c1-student.vsu.edu.ph/api/students/grades?sy_year=2025&sy_period=1', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Token token=${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    });
+    return response.json();
+}
+
 export default defineEventHandler(async (event) => {
-    
-    const session = event.context.session as SessionData;
     const CACHE_DURATION = 5 * 60 * 1000; // 5min
     const query = getQuery(event);
     const forceRefresh = query.force === 'true';
 
-    if (!session?.token) {
-        throw createError({
-            statusCode: 401,
-            message: "No authentication token provided"
-        });
+    const { data: sessionData, error: sessionError } = await supabase
+        .from('app_session')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+    if (sessionError || !sessionData) {
+        throw createError({ statusCode: 500, message: 'Could not fetch app session from database.' });
     }
 
-    if (!forceRefresh && session.grades?.length > 0 && session.lastFetch && 
-        (Date.now() - session.lastFetch < CACHE_DURATION)) {
-        return { grades: transformGrades(session.grades) };
+    const lastFetch = sessionData.last_fetch ? new Date(sessionData.last_fetch).getTime() : 0;
+    if (!forceRefresh && sessionData.grades_cache?.length > 0 && (Date.now() - lastFetch < CACHE_DURATION)) {
+        return { grades: transformGrades(sessionData.grades_cache) };
     }
 
+    let token = sessionData.token;
+    if (!token) {
+        token = await reauthenticateAndStoreToken();
+    }
+    
     try {
-        const response = await fetch('https://c1-student.vsu.edu.ph/api/students/grades?sy_year=2025&sy_period=1', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Token token=${session.token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
+        let gradesResponse = await fetchGradesFromVSU(token);
+
+        if (gradesResponse?.messages?.includes("You are not logged in.")) {
+            console.log("Token expired. Re-authenticating...");
+            const newToken = await reauthenticateAndStoreToken();
+            gradesResponse = await fetchGradesFromVSU(newToken);
+
+            if (gradesResponse?.messages?.includes("You are not logged in.")) {
+                 throw new Error("Authentication failed even after refreshing token.");
             }
-        });
-        const data = await response.json();
+        }
         
-        if (data?.messages?.includes("You are not logged in.")) {
-            session.token = null;
-            throw createError({
-                statusCode: 401,
-                message: "Authentication expired"
-            });
+        if (!gradesResponse.grades) {
+             throw new Error(`Invalid grades response from VSU API: ${JSON.stringify(gradesResponse)}`);
         }
 
-        session.grades = data.grades;
-        session.lastFetch = Date.now();
+        const { error: updateError } = await supabase
+            .from('app_session')
+            .update({ grades_cache: gradesResponse.grades, last_fetch: new Date().toISOString() })
+            .eq('id', 1);
 
-        return { grades: transformGrades(data.grades) };
-    } catch (error) {
-        console.error("Grades endpoint - Failed to fetch grades:", error);
+        if (updateError) {
+            console.error("Failed to update cache in Supabase:", updateError);
+        }
+
+        return { grades: transformGrades(gradesResponse.grades) };
+
+    } catch (error: any) {
+        console.error("Grades endpoint - Failed to fetch grades:", error.message);
         throw createError({
             statusCode: 500,
-            message: "Failed to fetch grades"
+            message: "Failed to fetch grades from VSU"
         });
     }
 });

@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "@vueuse/head": "^2.0.0",
     "@vueuse/nuxt": "^13.3.0",
     "h3-session": "^0.2.5",
