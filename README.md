@@ -23,6 +23,9 @@ create table public.app_session (
   last_fetch timestamp with time zone null,
   constraint app_session_pkey primary key (id)
 ) TABLESPACE pg_default;
+
+INSERT INTO app_session (id, token, grades_cache, last_fetch) 
+VALUES (1, null, '[]', null);
 ```
 
 This table stores session tokens, cached grades, and the last fetch timestamp for each session.
