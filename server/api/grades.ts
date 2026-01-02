@@ -1,6 +1,7 @@
-import { defineEventHandler, createError, getQuery } from 'h3'
+import { defineEventHandler, createError, getQuery, getHeader } from 'h3'
 import { supabase } from '../utils/supabase'
 import { reauthenticateAndStoreToken } from '../utils/vsuAuth'
+import { authenticateWithCredentials } from '../utils/vsuAuth'
 
 interface GradeData {
     offer: {
@@ -54,9 +55,36 @@ async function fetchGradesFromVSU(token: string) {
 }
 
 export default defineEventHandler(async (event) => {
-    const CACHE_DURATION = 5 * 60 * 1000; // 5min
     const query = getQuery(event);
     const forceRefresh = query.force === 'true';
+
+    const userUsername = getHeader(event, 'x-vsu-username');
+    const userPassword = getHeader(event, 'x-vsu-password');
+
+    if (userUsername && userPassword) {
+        try {
+            const token = await authenticateWithCredentials(userUsername, userPassword);
+            const gradesResponse = await fetchGradesFromVSU(token);
+
+            if (gradesResponse?.messages?.includes("You are not logged in.")) {
+                throw new Error("Invalid credentials or authentication failed");
+            }
+
+            if (!gradesResponse.grades) {
+                throw new Error(`Invalid grades response from VSU API: ${JSON.stringify(gradesResponse)}`);
+            }
+
+            return { grades: transformGrades(gradesResponse.grades) };
+        } catch (error: any) {
+            console.error("Grades endpoint - User auth failed:", error.message);
+            throw createError({
+                statusCode: 401,
+                message: "Authentication failed. Please check your credentials."
+            });
+        }
+    }
+
+    const CACHE_DURATION = 5 * 60 * 1000; // 5min
 
     const { data: sessionData, error: sessionError } = await supabase
         .from('app_session')

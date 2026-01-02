@@ -1,13 +1,18 @@
 <template>
+  <div class="banner-wrapper">
+    <div class="banner">
+      <img src="/yotsubato-kaeru.gif" alt="Yotsuba Banner" class="banner-img" />
+    </div>
+  </div>
   <div class="container">
     <div class="header">
-      <h1>{{ title }}</h1>
       <button @click="refreshGrades" :disabled="isLoading" class="refresh-btn">
         Refresh Grades
       </button>
     </div>
-    <div v-if="error" class="error">{{ error }}</div>
-    <div v-else-if="isLoading" class="loading">Loading grades...</div>
+    
+    <div v-if="isLoading" class="loading">Loading grades...</div>
+    <div v-else-if="error" class="error">{{ error }}</div>
     <table v-else-if="grades.length">
       <thead>
         <tr>
@@ -33,8 +38,15 @@
       </tbody>
     </table>
     <div class="footer">
-      <img src="/sewerYotsuba.png" alt="Sewer Yotsuba" class="yotsuba-img" />
-      <p class="credits">credits: vitrus</p>
+      <p>
+        <NuxtLink v-if="hasCredentials" to="/login" class="link">
+          Switch Account
+        </NuxtLink>
+        <NuxtLink v-else to="/login" class="link">
+          Login
+        </NuxtLink>
+        <NuxtLink to="/privacy" class="link"> Privacy Policy </NuxtLink>
+      </p>
     </div>
   </div>
 </template>
@@ -80,14 +92,22 @@ interface Grade {
 const grades = ref<Grade[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const hasCredentials = ref(false);
 
-async function getStatus(force = false) {
+async function getStatus(force = false, userCredentials?: { username: string; password: string }) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (userCredentials) {
+    headers["X-VSU-Username"] = userCredentials.username;
+    headers["X-VSU-Password"] = userCredentials.password;
+  }
+
   const response = await fetch(`/api/grades${force ? "?force=true" : ""}`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
+    headers: headers,
   });
   const data = await response.json();
   if (!response.ok) {
@@ -99,9 +119,24 @@ async function getStatus(force = false) {
 async function loadStatus() {
   isLoading.value = true;
   error.value = null;
+
   try {
+    const storedCredentials = localStorage.getItem("vsu_credentials");
+    if (storedCredentials) {
+      try {
+        const { username, password } = JSON.parse(storedCredentials);
+        hasCredentials.value = true;
+        const data = await getStatus(false, { username, password });
+        grades.value = data.grades;
+        return;
+      } catch (e) {
+        console.error("Failed to parse stored credentials, falling back to default");
+      }
+    }
+
     const data = await getStatus();
     grades.value = data.grades;
+    hasCredentials.value = false;
   } catch (err: unknown) {
     error.value =
       err instanceof Error ? err.message : "An unexpected error occurred";
@@ -115,6 +150,18 @@ async function refreshGrades() {
   isLoading.value = true;
   error.value = null;
   try {
+    const storedCredentials = localStorage.getItem("vsu_credentials");
+    if (storedCredentials) {
+      try {
+        const { username, password } = JSON.parse(storedCredentials);
+        const data = await getStatus(true, { username, password });
+        grades.value = data.grades;
+        return;
+      } catch (e) {
+        console.error("Failed to parse stored credentials");
+      }
+    }
+
     const data = await getStatus(true);
     grades.value = data.grades;
   } catch (err: unknown) {
@@ -127,15 +174,37 @@ async function refreshGrades() {
 }
 
 onMounted(() => {
+  isLoading.value = true;
   loadStatus();
 });
 </script>
 
+
 <style scoped>
+.banner-wrapper {
+  width: 100%;
+  background: #fff;
+  margin-bottom: 1.5rem;
+}
+.banner {
+  width: 100%;
+  text-align: center;
+  padding: 1.5rem 0 1rem 0;
+}
+.banner-img {
+  max-width: 350px;
+  width: 100%;
+  height: auto;
+  display: inline-block;
+  border-radius: 12px;
+}
+
 .container {
-  padding: 1rem;
+  padding: 1.5rem 1rem 2rem 1rem;
   max-width: 100%;
   margin: 0 auto;
+  background: #fff;
+  border-radius: 12px;
 }
 
 h1 {
@@ -237,6 +306,23 @@ tr:nth-child(even) {
   cursor: not-allowed;
 }
 
+.footer {
+  margin-top: 2rem;
+  text-align: center;
+  padding: 1rem 0 0.5rem 0;
+}
+
+.link {
+  color: #666666;
+  text-decoration: none;
+  margin: 0 1rem;
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
 @media screen and (min-width: 768px) {
   .subject-code {
     width: 12%;
@@ -279,23 +365,5 @@ tr:nth-child(even) {
     padding: 0.25rem;
     font-size: 0.875rem;
   }
-}
-
-.footer {
-  margin-top: 2rem;
-  text-align: center;
-}
-
-.yotsuba-img {
-  max-width: 300px;
-  height: auto;
-  margin: 1rem auto;
-  display: block;
-}
-
-.credits {
-  font-size: 0.9rem;
-  color: #666;
-  margin-top: 0.5rem;
 }
 </style>
