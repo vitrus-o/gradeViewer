@@ -1,7 +1,7 @@
 <template>
   <div class="banner-wrapper">
     <div class="banner">
-      <img src="/yotsubato-kaeru.gif" alt="Yotsuba Banner" class="banner-img" />
+      <img src="/yotsubato-kaeru.gif" alt="Yotsuba Banner" class="banner-img"/>
     </div>
   </div>
   <div class="container">
@@ -9,8 +9,17 @@
       <button @click="refreshGrades" :disabled="isLoading" class="refresh-btn">
         Refresh Grades
       </button>
+      <button
+        v-if="hasUserCredentials"
+        @click="revertToDefault"
+        :disabled="isLoading"
+        class="refresh-btn"
+        style="background-color: #888; margin-left: 1rem"
+      >
+        Revert to default (no credentials)
+      </button>
     </div>
-    
+
     <div v-if="isLoading" class="loading">Loading grades...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <table v-else-if="grades.length">
@@ -21,6 +30,10 @@
           <th class="status">Status</th>
           <th class="status-label">Status Label</th>
           <th class="submitted">Submitted</th>
+          <th v-if="hasUserCredentials" class="midterm">Midterm</th>
+          <th v-if="hasUserCredentials" class="final">Final</th>
+          <th v-if="hasUserCredentials" class="completion">Completion</th>
+          <th v-if="hasUserCredentials" class="remark">Remark</th>
         </tr>
       </thead>
       <tbody>
@@ -34,19 +47,34 @@
           <td class="submitted">
             {{ grade.grade_status.final.submitted || "Not yet submitted" }}
           </td>
+          <td v-if="hasUserCredentials" class="midterm">
+            {{ grade.grade?.midterm ?? "-" }}
+          </td>
+          <td v-if="hasUserCredentials" class="final">
+            {{ grade.grade?.final ?? "-" }}
+          </td>
+          <td v-if="hasUserCredentials" class="completion">
+            {{ grade.grade?.completion ?? "-" }}
+          </td>
+          <td v-if="hasUserCredentials" class="remark">
+            {{ grade.grade?.remark ?? "-" }}
+          </td>
         </tr>
       </tbody>
     </table>
     <div class="footer">
       <p>
         <NuxtLink v-if="hasCredentials" to="/login" class="link">
-          Switch Account
+          Account
         </NuxtLink>
-        <NuxtLink v-else to="/login" class="link">
-          Login
+        <NuxtLink v-if="hasCredentials" to="/privacy" class="link">
+          Privacy Policy
         </NuxtLink>
-        <NuxtLink to="/privacy" class="link"> Privacy Policy </NuxtLink>
       </p>
+      <div class="footer-extra">
+        <img src="/sewerYotsuba.png" alt="Sewer Yotsuba" class="yotsuba-img" />
+        <p class="credits">credits: vitrus</p>
+      </div>
     </div>
   </div>
 </template>
@@ -54,6 +82,7 @@
 <script setup lang="ts">
 import { useSeoMeta, useHead } from "@vueuse/head";
 import { ref, onMounted } from "vue";
+import type { Grade } from "~/types";
 
 const title = "Yotsuba Grade Viewer";
 const description =
@@ -73,28 +102,16 @@ useHead({
   ],
 });
 
-interface Grade {
-  grade_status: {
-    final: {
-      status: number;
-      status_label: string;
-      submitted: string;
-    };
-  };
-  offer: {
-    subject: {
-      subject_no: string;
-      description: string;
-    };
-  };
-}
-
 const grades = ref<Grade[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const hasCredentials = ref(false);
+const hasUserCredentials = ref(false);
 
-async function getStatus(force = false, userCredentials?: { username: string; password: string }) {
+async function getStatus(
+  force = false,
+  userCredentials?: { username: string; password: string }
+) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -116,6 +133,13 @@ async function getStatus(force = false, userCredentials?: { username: string; pa
   return data;
 }
 
+function revertToDefault() {
+  localStorage.removeItem("vsu_credentials");
+  hasCredentials.value = false;
+  hasUserCredentials.value = false;
+  loadStatus();
+}
+
 async function loadStatus() {
   isLoading.value = true;
   error.value = null;
@@ -128,15 +152,19 @@ async function loadStatus() {
         hasCredentials.value = true;
         const data = await getStatus(false, { username, password });
         grades.value = data.grades;
+        hasUserCredentials.value = !!data.hasUserCredentials;
         return;
       } catch (e) {
-        console.error("Failed to parse stored credentials, falling back to default");
+        console.error(
+          "Failed to parse stored credentials, falling back to default"
+        );
       }
     }
 
     const data = await getStatus();
     grades.value = data.grades;
     hasCredentials.value = false;
+    hasUserCredentials.value = !!data.hasUserCredentials;
   } catch (err: unknown) {
     error.value =
       err instanceof Error ? err.message : "An unexpected error occurred";
@@ -156,6 +184,7 @@ async function refreshGrades() {
         const { username, password } = JSON.parse(storedCredentials);
         const data = await getStatus(true, { username, password });
         grades.value = data.grades;
+        hasUserCredentials.value = !!data.hasUserCredentials;
         return;
       } catch (e) {
         console.error("Failed to parse stored credentials");
@@ -164,6 +193,7 @@ async function refreshGrades() {
 
     const data = await getStatus(true);
     grades.value = data.grades;
+    hasUserCredentials.value = !!data.hasUserCredentials;
   } catch (err: unknown) {
     error.value =
       err instanceof Error ? err.message : "An unexpected error occurred";
@@ -179,24 +209,41 @@ onMounted(() => {
 });
 </script>
 
-
 <style scoped>
 .banner-wrapper {
   width: 100%;
   background: #fff;
   margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-.banner {
-  width: 100%;
+.footer {
+  margin-top: 2rem;
   text-align: center;
-  padding: 1.5rem 0 1rem 0;
+  padding: 1rem 0 0.5rem 0;
 }
-.banner-img {
-  max-width: 350px;
+.footer-extra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.2rem;
+}
+.yotsuba-img {
+  max-width: 220px;
   width: 100%;
   height: auto;
-  display: inline-block;
-  border-radius: 12px;
+  display: block;
+  margin: 0 auto 0.5rem auto;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.credits {
+  text-align: center;
+  font-size: 0.92rem;
+  color: #888;
+  margin-bottom: 0;
 }
 
 .container {
@@ -268,6 +315,14 @@ tr:nth-child(even) {
   width: 120px;
 }
 
+.midterm,
+.final,
+.completion,
+.remark {
+  width: 80px;
+  word-break: break-word;
+}
+
 .error {
   color: red;
   padding: 1rem;
@@ -282,7 +337,7 @@ tr:nth-child(even) {
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: left;
   align-items: center;
   margin-bottom: 1rem;
 }
@@ -339,6 +394,18 @@ tr:nth-child(even) {
   .submitted {
     width: 15%;
   }
+  .midterm {
+    width: 8%;
+  }
+  .final {
+    width: 8%;
+  }
+  .completion {
+    width: 8%;
+  }
+  .remark {
+    width: 8%;
+  }
 }
 
 @media screen and (max-width: 767px) {
@@ -356,6 +423,18 @@ tr:nth-child(even) {
   }
   .submitted {
     width: 15%;
+  }
+  .midterm {
+    width: 10%;
+  }
+  .final {
+    width: 10%;
+  }
+  .completion {
+    width: 10%;
+  }
+  .remark {
+    width: 10%;
   }
 }
 

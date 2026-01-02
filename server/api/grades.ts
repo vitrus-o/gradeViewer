@@ -2,25 +2,9 @@ import { defineEventHandler, createError, getQuery, getHeader } from 'h3'
 import { supabase } from '../utils/supabase'
 import { reauthenticateAndStoreToken } from '../utils/vsuAuth'
 import { authenticateWithCredentials } from '../utils/vsuAuth'
+import { Grade } from '~/types';
 
-interface GradeData {
-    offer: {
-        subject: {
-            subject_no: string;
-            description: string;
-        }
-    };
-    grade_status: {
-        final: {
-            status: number;
-            status_label: string;
-            submitted: string | null;
-            remark?: string;
-        }
-    }
-}
-
-function transformGrades(rawGrades: any[]): GradeData[] {
+const transformGrades = (rawGrades: any[]): Grade[] => {
     return rawGrades.map(grade => {
         const isPassed = (grade?.grade?.remark == 'PASSED' && grade?.grade_status?.final?.status == 1);
         return {
@@ -37,7 +21,13 @@ function transformGrades(rawGrades: any[]): GradeData[] {
                     submitted: isPassed ? "Encoded but not submitted" : grade.grade_status.final.submitted,
                     remark: grade.grade_status.final.remark
                 }
-            }
+            },
+            grade: grade.grade ? {
+                midterm: grade.grade.midterm,
+                final: grade.grade.final,
+                completion: grade.grade.completion,
+                remark: grade.grade.remark
+            } : undefined
         };
     });
 }
@@ -74,7 +64,8 @@ export default defineEventHandler(async (event) => {
                 throw new Error(`Invalid grades response from VSU API: ${JSON.stringify(gradesResponse)}`);
             }
 
-            return { grades: transformGrades(gradesResponse.grades) };
+            // When logged in with user credentials, include grade fields
+            return { grades: transformGrades(gradesResponse.grades), hasUserCredentials: true };
         } catch (error: any) {
             console.error("Grades endpoint - User auth failed:", error.message);
             throw createError({
@@ -98,7 +89,9 @@ export default defineEventHandler(async (event) => {
 
     const lastFetch = sessionData.last_fetch ? new Date(sessionData.last_fetch).getTime() : 0;
     if (!forceRefresh && sessionData.grades_cache?.length > 0 && (Date.now() - lastFetch < CACHE_DURATION)) {
-        return { grades: transformGrades(sessionData.grades_cache) };
+        // When using default credentials, omit grade fields
+        const grades = transformGrades(sessionData.grades_cache).map(({ grade, ...rest }) => rest);
+        return { grades, hasUserCredentials: false };
     }
 
     let token = sessionData.token;
@@ -132,7 +125,9 @@ export default defineEventHandler(async (event) => {
             console.error("Failed to update cache in Supabase:", updateError);
         }
 
-        return { grades: transformGrades(gradesResponse.grades) };
+        // When using default credentials, omit grade fields
+        const grades = transformGrades(gradesResponse.grades).map(({ grade, ...rest }) => rest);
+        return { grades, hasUserCredentials: false };
 
     } catch (error: any) {
         console.error("Grades endpoint - Failed to fetch grades:", error.message);

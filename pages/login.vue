@@ -1,8 +1,9 @@
 <template>
   <div class="login-bg-minimal">
     <div class="login-minimal-card">
+      <NuxtLink to="/" class="back-to-index-btn">← Back to Grades</NuxtLink>
       <img src="/yotsubato-kaeru.gif" alt="Yotsuba Banner" class="login-banner-img" />
-      <p class="subtitle">Enter your VSU portal credentials to view your grades</p>
+      <p class="subtitle">Enter your VSU Cumulus portal credentials to view your grades</p>
       <div class="info-banner-minimal">
         <strong>Privacy Notice:</strong> Your credentials are stored only in your browser's local storage and are never sent to our servers or any third party. See our <NuxtLink to="/privacy">privacy policy</NuxtLink> for more details.
       </div>
@@ -13,7 +14,7 @@
             id="username"
             v-model="username"
             type="text"
-            placeholder="Your VSU username"
+            placeholder="Your VSU Cumulus username"
             required
             :disabled="isLoading"
           />
@@ -24,7 +25,7 @@
             id="password"
             v-model="password"
             type="password"
-            placeholder="Your VSU password"
+            placeholder="Your VSU Cumulus password"
             required
             :disabled="isLoading"
           />
@@ -88,8 +89,9 @@ onMounted(() => {
   const stored = localStorage.getItem("vsu_credentials");
   if (stored) {
     try {
-      const { username: storedUsername } = JSON.parse(stored);
+      const { username: storedUsername, password: storedPassword } = JSON.parse(stored);
       username.value = storedUsername;
+      password.value = storedPassword || "";
     } catch (e) {
       console.error("Failed to parse stored credentials");
     }
@@ -316,6 +318,19 @@ input[type="checkbox"] {
 }
 .link-btn:hover {
   color: #444;
+}
+.back-to-index-btn {
+  align-self: flex-start;
+  margin-bottom: 1.2rem;
+  color: #222;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+.back-to-index-btn:hover {
+  color: #444;
+  text-decoration: underline;
 }
 @media screen and (max-width: 480px) {
   .login-minimal-card {
