@@ -22,7 +22,8 @@
 
     <div v-if="isLoading" class="loading">Loading grades...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
-    <table v-else-if="grades.length">
+    <div class="table-container" v-else-if="grades.length">
+      <table>
       <thead>
         <tr>
           <th class="subject-code">Subject Code</th>
@@ -61,7 +62,8 @@
           </td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </div>
     <div class="footer">
       <p>
         <NuxtLink v-if="hasCredentials" to="/login" class="link">
@@ -268,7 +270,8 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
-  table-layout: fixed;
+  table-layout: auto;
+  min-width: 600px;
 }
 
 th,
@@ -276,11 +279,9 @@ td {
   border: 1px solid #ddd;
   padding: 0.5rem;
   text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: normal;
-  vertical-align: top;
-  min-width: 80px;
+  vertical-align: middle;
+  word-wrap: break-word;
 }
 
 th {
@@ -296,31 +297,34 @@ tr:nth-child(even) {
 }
 
 .subject-code {
-  width: 100px;
+  min-width: 90px;
 }
 
 .description {
-  width: auto;
+  min-width: 200px;
+  max-width: 300px;
 }
 
 .status {
-  width: 80px;
+  min-width: 70px;
 }
 
 .status-label {
-  width: 150px;
+  min-width: 120px;
 }
 
 .submitted {
-  width: 120px;
+  min-width: 100px;
 }
 
 .midterm,
 .final,
-.completion,
+.completion {
+  min-width: 70px;
+}
+
 .remark {
-  width: 80px;
-  word-break: break-word;
+  min-width: 80px;
 }
 
 .error {
@@ -379,70 +383,24 @@ tr:nth-child(even) {
 }
 
 @media screen and (min-width: 768px) {
-  .subject-code {
-    width: 12%;
-  }
   .description {
-    width: 45%;
-  }
-  .status {
-    width: 8%;
-  }
-  .status-label {
-    width: 20%;
-  }
-  .submitted {
-    width: 15%;
-  }
-  .midterm {
-    width: 8%;
-  }
-  .final {
-    width: 8%;
-  }
-  .completion {
-    width: 8%;
-  }
-  .remark {
-    width: 8%;
+    max-width: 400px;
   }
 }
 
 @media screen and (max-width: 767px) {
-  .subject-code {
-    width: 15%;
-  }
-  .description {
-    width: 40%;
-  }
-  .status {
-    width: 10%;
-  }
-  .status-label {
-    width: 20%;
-  }
-  .submitted {
-    width: 15%;
-  }
-  .midterm {
-    width: 10%;
-  }
-  .final {
-    width: 10%;
-  }
-  .completion {
-    width: 10%;
-  }
-  .remark {
-    width: 10%;
+  th,
+  td {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.9rem;
   }
 }
 
 @media screen and (max-width: 480px) {
   th,
   td {
-    padding: 0.25rem;
-    font-size: 0.875rem;
+    padding: 0.25rem 0.3rem;
+    font-size: 0.85rem;
   }
 }
 </style>
