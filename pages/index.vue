@@ -1,83 +1,89 @@
 <template>
-  <div class="banner-wrapper">
+  <div v-if="hasCredentials" class="banner-wrapper">
     <div class="banner">
       <img src="/yotsubato-kaeru.gif" alt="Yotsuba Banner" class="banner-img"/>
     </div>
   </div>
   <div class="container">
-    <div class="header">
-      <button @click="refreshGrades" :disabled="isLoading" class="refresh-btn">
-        Refresh Grades
-      </button>
-      <button
-        v-if="hasUserCredentials"
-        @click="revertToDefault"
-        :disabled="isLoading"
-        class="refresh-btn"
-        style="background-color: #888; margin-left: 1rem"
-      >
-        Revert to default (no credentials)
-      </button>
+    <div v-if="!hasCredentials" class="not-logged-in">
+      <img src="/GRy2QmqXkAAtWan.png" alt="Not Logged In" class="not-logged-in-img" />
+      <p class="not-logged-in-text">Mr. MIS please don't take this website away from us, it's our only source of joy</p>
     </div>
-
-    <div v-if="isLoading" class="loading">Loading grades...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div class="table-container" v-else-if="grades.length">
-      <table>
-      <thead>
-        <tr>
-          <th class="subject-code">Subject Code</th>
-          <th class="description">Subject Description</th>
-          <th class="status">Status</th>
-          <th class="status-label">Status Label</th>
-          <th class="submitted">Submitted</th>
-          <th v-if="hasUserCredentials" class="midterm">Midterm</th>
-          <th v-if="hasUserCredentials" class="final">Final</th>
-          <th v-if="hasUserCredentials" class="completion">Completion</th>
-          <th v-if="hasUserCredentials" class="remark">Remark</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="grade in grades" :key="grade.offer.subject.subject_no">
-          <td class="subject-code">{{ grade.offer.subject.subject_no }}</td>
-          <td class="description">{{ grade.offer.subject.description }}</td>
-          <td class="status">{{ grade.grade_status.final.status }}</td>
-          <td class="status-label">
-            {{ grade.grade_status.final.status_label }}
-          </td>
-          <td class="submitted">
-            {{ grade.grade_status.final.submitted || "Not yet submitted" }}
-          </td>
-          <td v-if="hasUserCredentials" class="midterm">
-            {{ grade.grade?.midterm ?? "-" }}
-          </td>
-          <td v-if="hasUserCredentials" class="final">
-            {{ grade.grade?.final ?? "-" }}
-          </td>
-          <td v-if="hasUserCredentials" class="completion">
-            {{ grade.grade?.completion ?? "-" }}
-          </td>
-          <td v-if="hasUserCredentials" class="remark">
-            {{ grade.grade?.remark ?? "-" }}
-          </td>
-        </tr>
-      </tbody>
-      </table>
-    </div>
-    <div class="footer">
-      <p>
-        <NuxtLink v-if="hasCredentials" to="/login" class="link">
-          Account
-        </NuxtLink>
-        <NuxtLink v-if="hasCredentials" to="/privacy" class="link">
-          Privacy Policy
-        </NuxtLink>
-      </p>
-      <div class="footer-extra">
-        <img src="/sewerYotsuba.png" alt="Sewer Yotsuba" class="yotsuba-img" />
-        <p class="credits">credits: vitrus</p>
+    <template v-else-if="hasCredentials">
+      <div class="header">
+        <button @click="refreshGrades" :disabled="isLoading" class="refresh-btn">
+          Refresh Grades
+        </button>
+        <button
+          v-if="hasUserCredentials"
+          @click="revertToDefault"
+          :disabled="isLoading"
+          class="refresh-btn"
+          style="background-color: #888; margin-left: 1rem"
+        >
+          Revert to default (no credentials)
+        </button>
       </div>
-    </div>
+
+      <div v-if="isLoading" class="loading">Loading grades...</div>
+      <div v-else-if="error" class="error">{{ error }}</div>
+      <div class="table-container" v-else-if="grades.length">
+        <table>
+        <thead>
+          <tr>
+            <th class="subject-code">Subject Code</th>
+            <th class="description">Subject Description</th>
+            <th class="status">Status</th>
+            <th class="status-label">Status Label</th>
+            <th class="submitted">Submitted</th>
+            <th v-if="hasUserCredentials" class="midterm">Midterm</th>
+            <th v-if="hasUserCredentials" class="final">Final</th>
+            <th v-if="hasUserCredentials" class="completion">Completion</th>
+            <th v-if="hasUserCredentials" class="remark">Remark</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="grade in grades" :key="grade.offer.subject.subject_no">
+            <td class="subject-code">{{ grade.offer.subject.subject_no }}</td>
+            <td class="description">{{ grade.offer.subject.description }}</td>
+            <td class="status">{{ grade.grade_status.final.status }}</td>
+            <td class="status-label">
+              {{ grade.grade_status.final.status_label }}
+            </td>
+            <td class="submitted">
+              {{ grade.grade_status.final.submitted || "Not yet submitted" }}
+            </td>
+            <td v-if="hasUserCredentials" class="midterm">
+              {{ grade.grade?.midterm ?? "-" }}
+            </td>
+            <td v-if="hasUserCredentials" class="final">
+              {{ grade.grade?.final ?? "-" }}
+            </td>
+            <td v-if="hasUserCredentials" class="completion">
+              {{ grade.grade?.completion ?? "-" }}
+            </td>
+            <td v-if="hasUserCredentials" class="remark">
+              {{ grade.grade?.remark ?? "-" }}
+            </td>
+          </tr>
+        </tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <p>
+          <NuxtLink v-if="hasCredentials" to="/login" class="link">
+            Account
+          </NuxtLink>
+          <NuxtLink v-if="hasCredentials" to="/privacy" class="link">
+            Privacy Policy
+          </NuxtLink>
+        </p>
+        <div class="footer-extra">
+          <img src="/sewerYotsuba.png" alt="Sewer Yotsuba" class="yotsuba-img" />
+          <p class="credits">credits: vitrus</p>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -102,10 +108,22 @@ useHead({
     { rel: "icon", type: "image/png", href: "/logoyotsubato.png" },
     { rel: "stylesheet", href: "/reset.css" },
   ],
+  style: [
+    {
+      children: `
+        @font-face {
+          font-family: 'ccwildwords';
+          src: url('/CC Wild Words Roman.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+      `
+    }
+  ]
 });
 
 const grades = ref<Grade[]>([]);
-const isLoading = ref(false);
+const isLoading = ref(true);
 const error = ref<string | null>(null);
 const hasCredentials = ref(false);
 const hasUserCredentials = ref(false);
@@ -206,7 +224,6 @@ async function refreshGrades() {
 }
 
 onMounted(() => {
-  isLoading.value = true;
   loadStatus();
 });
 </script>
@@ -380,6 +397,35 @@ tr:nth-child(even) {
 
 .link:hover {
   text-decoration: underline;
+}
+
+.not-logged-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.not-logged-in-img {
+  max-width: 100%;
+  width: 600px;
+  height: auto;
+  display: block;
+  margin: 0 auto 1.5rem auto;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.not-logged-in-text {
+  font-size: 1.1rem;
+  color: #333;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto;
+  font-weight: bold;
+  font-family: ccwildwords, sans-serif;
 }
 
 @media screen and (min-width: 768px) {
