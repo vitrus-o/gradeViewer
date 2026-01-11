@@ -37,8 +37,10 @@ async function fetchGradesFromVSU(token: string) {
         method: 'GET',
         headers: {
             'Authorization': `Token token=${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Referer': 'https://my.vsu.edu.ph/',
+            'Origin': 'https://my.vsu.edu.ph',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
         }
     });
     return response.json();
